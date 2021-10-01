@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      id-token: write  # undocumented OIDC support.
+      packages: write
+      contents: read
+    env:
+      COSIGN_EXPERIMENTAL: "true"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+      - name: Build and Push container images
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/lukehinds/cosign-oidc:${{ github.sha }}
+      - name: Sign image
+        run: |
+          cosign sign ghcr.io/lukehinds/cosign-oidc:${{ github.sha }}
