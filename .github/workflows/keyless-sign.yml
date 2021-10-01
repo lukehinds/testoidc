@@ -33,7 +33,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/lukehinds/cosign-oidc:latest
+            ghcr.io/lukehinds/cosign-oidc:${{ github.sha }}
       - name: Sign image
         run: |
-          cosign sign ghcr.io/lukehinds/cosign-oidc:latest
+          cosign sign ghcr.io/lukehinds/cosign-oidc:${{ github.sha }}
