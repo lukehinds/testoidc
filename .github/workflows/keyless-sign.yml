@@ -1,26 +1,39 @@
-name: federate
-
+name: CI
 on:
   push:
-    branches:
-    - '*'
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  auth:
-
-    # Add "id-token" with the intended permissions.
+  build:
     permissions:
-      contents: 'read'
-      id-token: 'write'
-
+      id-token: write  # undocumented OIDC support.
+      packages: write
+      contents: read
+    env:
+      COSIGN_EXPERIMENTAL: "true"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v2
+      - name: Log into ghcr.io
+        uses: docker/login-action@v1
         with:
-          fetch-depth: 1
-      - name: Dump env
-        run: env
-      - name: Post the token
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ github.token }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+      - name: Build and Push container images
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/lukehinds/cosign-oidc:${{ github.sha }}
+      - name: Sign image
         run: |
-          OIDC_TOKEN=$(curl -sLS "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=o6s" -H "User-Agent: actions/oidc-client" -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN")
-          echo $OIDC_TOKEN
+          cosign sign ghcr.io/lukehinds/cosign-oidc:${{ github.sha }}
